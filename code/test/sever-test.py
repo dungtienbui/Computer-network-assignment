@@ -1,5 +1,3 @@
-from pickle import TRUE
-from secrets import token_bytes
 from ftplib import FTP
 import socket
 import threading
