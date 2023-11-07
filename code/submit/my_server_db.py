@@ -8,16 +8,6 @@
 #       file_table: [fname (primary)] [lname] [hostname (foreign)]
 #----------------------------------------------------------------------------------------
 import sqlite3
-import os
-
-# DB_NAME = None
-
-# current_directory = os.path.dirname(__file__)
-# os.chdir(current_directory)
-
-# def set_server_db_name(name):
-#     global DB_NAME
-#     DB_NAME = name
 
 class Database:
     def __init__(self, db_name):
@@ -73,7 +63,7 @@ class Database:
     
     def get_allData_host_table(self):
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM host_table")
+        cursor.execute("SELECT hostname, IP_addr FROM host_table")
         return cursor.fetchall()
     
     def get_allData_file_table(self):
@@ -118,8 +108,3 @@ class Database:
     
     def close(self):
         self.conn.close()
-
-# if __name__ == "__main__":
-#     set_server_db_name("server_db")
-#     db = Database(DB_NAME)
-#     db.close()
