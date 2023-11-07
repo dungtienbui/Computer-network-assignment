@@ -271,6 +271,8 @@ def fetch_function(fname):
         if f_size != cf_size:
             return f"Loi trong qua trinh tai file. File size: {f_size} >< Copy file size: {cf_size}"
         else:
+            #----------tu dong publish sau khi tai file chi danh cho truong hop:
+            #----------repository folder va download folder la cung mot thu muc.
             if DOWNLOAD_PATH == REPOSITORY_PATH:
                 publish_function(copy_file, copy_file_path)
                 return "File is downloaded completely and published."
@@ -334,15 +336,12 @@ def publish_function(fname, lname):
     
     status_code = get_status_code(response_data)        
     if status_code == 200:
-        return f"Publish thanh cong file {fname}."
+        return f"Publish thanh cong file {fname.decode()}."
     else:
         return "ERROR!"
 #---------------------------------------------------------
 #--------------------end----------------------------------
 #---------------------------------------------------------
-
-        
-        print("10. Shutdown:")
         
 #---------ham xu ly cac tac vu thong thuong----------------
 def handle_command():
@@ -401,8 +400,7 @@ def handle_command():
                         if set_repository_path(path) == True :
                             print("Thiet lap duong dan repository thanh cong.")
                         else:
-                            print("Thiet lap duong dan repository khong thanh cong.")          
-                    print("#------------------------------------#")
+                            print("Thiet lap duong dan repository khong thanh cong.")
         elif unlog_icmd == '2':
             my_name = input('Nhap ten: ')
             my_pass = input('Nhap pass: ')
