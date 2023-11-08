@@ -447,6 +447,7 @@ def handle_command():
             print(log)
             
             if log == "OK":
+                start_ftp_peer_thread()
                 while running_log:
                     print("#------------------------------------#")
                     print("1. Dang xuat:")
@@ -454,7 +455,7 @@ def handle_command():
                     print("3. Publish:")
                     print("4. Unpulish:")
                     print("5. Cai dat thu muc download: ")
-                    print("6. Cai dat thu muc repository path: ")
+                    print("6. Cai dat thu muc repository: ")
                     print("#------------------------------------#")
                     icmd = input("Chon chuc nang: ")
                     if icmd == '1':
@@ -463,6 +464,7 @@ def handle_command():
                             print("Nhap sai ten.")
                         else:
                             print(logout_function(my_name))
+                            stop_ftp_peer(ftp_peer)
                             break
                     elif icmd == '2':
                         fname = input('Nhap ten file: ')
@@ -476,17 +478,21 @@ def handle_command():
                         fname = input('Nhap fname: ')
                         print(unpublish_function(hostname, fname))
                     elif icmd == '5':
+                        stop_ftp_peer(ftp_peer)
                         path = input("Nhap duong dan download (tuyet doi) : ")
                         if set_download_path(path) == True :
                             print("Thiet lap duong dan download thanh cong.")
                         else:
                             print("Thiet lap duong dan download khong thanh cong.")
+                        start_ftp_peer_thread()
                     elif icmd == '6':
+                        stop_ftp_peer(ftp_peer)
                         path = input("Nhap duong dan repository (tuyet doi) : ")
                         if set_repository_path(path) == True :
                             print("Thiet lap duong dan repository thanh cong.")
                         else:
                             print("Thiet lap duong dan repository khong thanh cong.")
+                        start_ftp_peer_thread()
         elif unlog_icmd == '2':
             my_name = input('Nhap ten: ')
             my_pass = input('Nhap pass: ')
@@ -498,7 +504,6 @@ def handle_command():
             set_server_ip_address(addr)
             set_server_port(prt)
         elif unlog_icmd == '4':
-            stop_ftp_peer(ftp_peer)
             break;
         
 #-----------chay thread handle_command----------------
@@ -510,6 +515,5 @@ def start_handle_command_process():
 #-----------------main----------------------
 if __name__ == "__main__":
     check_path()
-    start_ftp_peer_thread()
     start_handle_command_process()
     
