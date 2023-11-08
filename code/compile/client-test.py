@@ -5,7 +5,6 @@ from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
 import os
-import json
 
 #--------------------------set current directory--------------------------
 current_directory = os.path.dirname(__file__)
@@ -22,12 +21,12 @@ SERVER_IP = 'localhost'
 SERVER_PORT = 12000
 server_addr = (SERVER_IP, SERVER_PORT)
 
-REPOSITORY_PATH = None
-DOWNLOAD_PATH = None
 
 #------------------config ftp peer-------------------
 PEER_IP = '0.0.0.0'
 PEER_PORT = 21
+REPOSITORY_PATH = current_directory
+DOWNLOAD_PATH = current_directory
 peer_adrr = (PEER_IP, PEER_PORT)
 PEER_NAME = None
 
@@ -37,15 +36,6 @@ def set_repository_path(path):
     global REPOSITORY_PATH
     
     if os.path.exists(path):
-        with open("path-config.json", "r") as config_file:
-            config_data = json.load(config_file)
-            
-        config_data['status'] = 'SETTED BY USER'
-        config_data['repository_path'] = path
-        
-        with open("path-config.json", "w") as config_file:
-            json.dump(config_data, config_file)
-        
         REPOSITORY_PATH = path
         return True
     else:
@@ -53,71 +43,13 @@ def set_repository_path(path):
     
 def set_download_path(path):
     global DOWNLOAD_PATH
-    
+
     if os.path.exists(path):
-        with open("path-config.json", "r") as config_file:
-            config_data = json.load(config_file)
-        
-        config_data['status'] = 'SETTED BY USER'  
-        config_data['download_path'] = path
-        
-        with open("path-config.json", "w") as config_file:
-            json.dump(config_data, config_file)
-        
         DOWNLOAD_PATH = path
         return True
     else:
         return False
-    
-def init_default_path():
-    global current_directory
-    global REPOSITORY_PATH
-    global DOWNLOAD_PATH
-    
-    PATH = {
-        'status' : 'DEFAULT',
-        'repository_path' : current_directory,
-        'download_path' : current_directory
-    }
-    with open("path-config.json", "w") as config_file:
-        json.dump(PATH, config_file)
-    
-    REPOSITORY_PATH = PATH["repository_path"]
-    DOWNLOAD_PATH = PATH["download_path"]
-    
-    print("The path of repositoy folder and download folder:")
-    print('Status: ' + PATH['status'])
-    print('Repository path: ' + PATH['repository_path'])
-    print('Download path: ' + PATH['download_path'])
-    
-def check_path():
-    try:
-        with open("path-config.json", "r") as config_file:
-            config_data = json.load(config_file)  
-        if not config_data:
-            print("INIT DEFAULT PATH")
-            init_default_path()
-        else:
-            using_path()
 
-    except FileNotFoundError:
-        print(f"File path-config not exist")
-        init_default_path()
-        
-        
-def using_path():
-    global REPOSITORY_PATH
-    global DOWNLOAD_PATH
-    with open("path-config.json", "r") as config_file:
-        config_data = json.load(config_file)
-    REPOSITORY_PATH = config_data['repository_path']
-    DOWNLOAD_PATH = config_data['download_path']
-    
-    print("The path of repositoy folder and download folder:")
-    print('Status: ' + config_data['status'])
-    print('Repository path: ' + config_data['repository_path'])
-    print('Download path: ' + config_data['download_path'])
-    
 #------------------------------get my ip address-------------
 def get_self_ip_address():
     hostname = socket.gethostname()
@@ -141,7 +73,6 @@ def set_server_port(port = 60000):
     global SERVER_PORT
     SERVER_PORT = port
     
-
 #----------------------ftp_peer object--------------
 ftp_peer = None
 
@@ -151,8 +82,6 @@ def start_ftp_peer_thread():
     global PEER_IP
     global PEER_PORT
     global ftp_peer
-    global REPOSITORY_PATH
-    
     authorizer = DummyAuthorizer()
     authorizer.add_anonymous(REPOSITORY_PATH, perm="lr")
 
@@ -289,7 +218,6 @@ def logout_function(username):
 
 def fetch_function(fname):
     global DOWNLOAD_PATH
-    global REPOSITORY_PATH
     
     request_type = bytes([4])
     fname_length = bytes([len(fname)])
@@ -329,7 +257,7 @@ def fetch_function(fname):
             ftp.voidcmd('TYPE I')
             f_size = ftp.size(lname)
         except Exception:
-            unpublish_function(hostname, fname.decode())
+            unpublish(hostname, fname.decode())
             return "Lname_error."
         
         copy_file_path =  DOWNLOAD_PATH + "/" + copy_file
@@ -338,7 +266,7 @@ def fetch_function(fname):
         
         ftp.close()
         
-        cf_size = os.path.getsize(copy_file_path)
+        cf_size = os.path.getsize(copy_file)
         
         if f_size != cf_size:
             return f"Loi trong qua trinh tai file. File size: {f_size} >< Copy file size: {cf_size}"
@@ -346,7 +274,7 @@ def fetch_function(fname):
             #----------tu dong publish sau khi tai file chi danh cho truong hop:
             #----------repository folder va download folder la cung mot thu muc.
             if DOWNLOAD_PATH == REPOSITORY_PATH:
-                publish_function(copy_file, os.path.basename(copy_file_path))
+                publish_function(copy_file, copy_file_path)
                 return "File is downloaded completely and published."
             else:
                 return "File is downloaded completely."
@@ -359,7 +287,7 @@ def fetch_function(fname):
     
     
     
-def unpublish_function(hostName, fname):
+def unpublish(hostName, fname):
     
     request_type = bytes([6])
     hostname = hostName.encode()
@@ -388,17 +316,6 @@ def unpublish_function(hostName, fname):
     
     
 def publish_function(fname, lname):
-    global REPOSITORY_PATH
-    
-    if str(lname).startswith(REPOSITORY_PATH):
-        if os.path.exists(lname) == False:
-            return 'LNAME IS NOT EXIT'
-        else:
-            lname = os.path.relpath(lname, REPOSITORY_PATH)
-    else:
-        abs_path = os.path.join(REPOSITORY_PATH, lname)
-        if os.path.exists(abs_path) == False:
-            return 'LNAME IS NOT EXIT'
     
     request_type = bytes([5])
     lname = lname.encode()
@@ -417,12 +334,11 @@ def publish_function(fname, lname):
     response_data = client_socket.recv(1024)
     client_socket.close()
     
-    status_code = get_status_code(response_data)   
-    response_name = response_data[2:].decode()     
+    status_code = get_status_code(response_data)        
     if status_code == 200:
         return f"Publish thanh cong file {fname.decode()}."
     else:
-        return response_name
+        return "ERROR!"
 #---------------------------------------------------------
 #--------------------end----------------------------------
 #---------------------------------------------------------
@@ -438,7 +354,6 @@ def handle_command():
         print("2. Dang ky:")
         print("3. Cai dat dia chi cua server: ")
         print("4. Shutdown:")
-        print("#------------------------------------#")
         unlog_icmd = input("Chon chuc nang: ")
         if unlog_icmd == '1':
             my_name = input('Nhap ten: ')
@@ -455,7 +370,6 @@ def handle_command():
                     print("4. Unpulish:")
                     print("5. Cai dat thu muc download: ")
                     print("6. Cai dat thu muc repository path: ")
-                    print("#------------------------------------#")
                     icmd = input("Chon chuc nang: ")
                     if icmd == '1':
                         my_name = input('Nhap ten: ')
@@ -474,7 +388,7 @@ def handle_command():
                     elif icmd == '4':
                         hostname = input('Nhap ten host: ')
                         fname = input('Nhap fname: ')
-                        print(unpublish_function(hostname, fname))
+                        print(unpublish(hostname, fname))
                     elif icmd == '5':
                         path = input("Nhap duong dan download (tuyet doi) : ")
                         if set_download_path(path) == True :
@@ -500,6 +414,7 @@ def handle_command():
         elif unlog_icmd == '4':
             stop_ftp_peer(ftp_peer)
             break;
+        print("#------------------------------------#")
         
 #-----------chay thread handle_command----------------
 def start_handle_command_process():
@@ -509,7 +424,7 @@ def start_handle_command_process():
 
 #-----------------main----------------------
 if __name__ == "__main__":
-    check_path()
+    # start_client_listener()
     start_ftp_peer_thread()
     start_handle_command_process()
     

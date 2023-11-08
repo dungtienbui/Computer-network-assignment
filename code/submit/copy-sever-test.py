@@ -449,7 +449,7 @@ def discover(hostname):
         my_db = Database(DATA_PATH)
         info_data = my_db.get_info_hostname(hostname)
         if info_data == []:
-            data = 'NOT_FIND_HOSTNAME'
+            data = "Khong tim thay host"
         else:
             data = my_db.get_all_file_of_host(hostname)
         my_db.close()
@@ -472,12 +472,8 @@ def remove_host(hostname):
         else:
             host_ip = info_data[0][2]
             if check_ftp_peer_status(host_ip) == False:
-                agree = input(f'Xac nhan xoa host: {hostname}. Vui long nhap [Y] or [y] (Nhap phim bat ky khac de thoat): ')
-                if agree == 'Y' or agree == 'y':
-                    my_db.delete_host(hostname)
-                    flag_success = 'DELETED HOST'
-                else:
-                    flag_success = 'CANCELLATED'
+                my_db.delete_host(hostname)
+                flag_success = 'DELETED HOST'
             else:
                 flag_success = "HOST IS ONLINE. CAN'T DELETE HOST."
         my_db.close()
@@ -551,12 +547,7 @@ def handle_command():
         elif icmd == '2':
             host = input("Nhap ten host: ")
             print(f"Discove {host}")
-            res = discover(host)
-            if res == 'NOT_FIND_HOSTNAME':
-                print(res)
-            else:
-                for x in res:
-                    print(x)
+            print(discover(host))
         elif icmd == '3':
             hostname = input("Nhap hostname: ")
             print(remove_host(hostname))

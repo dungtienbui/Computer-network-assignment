@@ -78,8 +78,7 @@ def get_status_code(response_data):
 #-----------------xu ly ket noi tu client toi---------------
 def handle_client_request(client_socket):
     request_data = client_socket.recv(1024)
-    
-    print(f"\nReceived request: {request_data.decode('utf-8')}\n")
+    print(f"Received request: {request_data.decode('utf-8')}")
     
     request_type = request_data[0:1]
     
@@ -375,16 +374,16 @@ def init_server_listenner(address, backLog = 5):
     
     SERVER_RUNNING = True
     
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(address)
-    server.listen(backLog)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # tao socket
+    server.bind(address) # gan IP va Port
+    server.listen(backLog)  # Lắng nghe tối đa 5 kết nối đồng thời
 
-    print(f"\nServer is listening on port: {SERVER_PORT}\n")
+    print(f"Server is listening on port: {SERVER_PORT}")
 
     while SERVER_RUNNING:
         client_socket, addr = server.accept()
         connected_clients.append(client_socket)
-        print(f"\nAccepted connection from: {addr[0]}:{addr[1]}\n")
+        print(f"Accepted connection from: {addr[0]}:{addr[1]}")
         client_handler = threading.Thread(target=handle_client_request, args=(client_socket,))
         client_handler.start()
     
@@ -449,7 +448,7 @@ def discover(hostname):
         my_db = Database(DATA_PATH)
         info_data = my_db.get_info_hostname(hostname)
         if info_data == []:
-            data = 'NOT_FIND_HOSTNAME'
+            data = "Khong tim thay host"
         else:
             data = my_db.get_all_file_of_host(hostname)
         my_db.close()
@@ -460,26 +459,16 @@ def discover(hostname):
 
 #-------------------remove a registered host---------------------------------
 def remove_host(hostname):
-    
     flag_success = None
-    
     db_lock.acquire()
     try:
         my_db = Database(DATA_PATH)
         info_data = my_db.get_info_hostname(hostname)
         if info_data == []:
-            flag_success = 'NOT FIND HOSTNAME'
+            flag_success = False
         else:
-            host_ip = info_data[0][2]
-            if check_ftp_peer_status(host_ip) == False:
-                agree = input(f'Xac nhan xoa host: {hostname}. Vui long nhap [Y] or [y] (Nhap phim bat ky khac de thoat): ')
-                if agree == 'Y' or agree == 'y':
-                    my_db.delete_host(hostname)
-                    flag_success = 'DELETED HOST'
-                else:
-                    flag_success = 'CANCELLATED'
-            else:
-                flag_success = "HOST IS ONLINE. CAN'T DELETE HOST."
+            my_db.delete_host(hostname)
+            flag_success = True
         my_db.close()
     finally:
         db_lock.release()
@@ -543,23 +532,21 @@ def handle_command():
         print("5. Get all host:")
         print("6. Get all file:")
         print("7. Shutdown:")
-        print("#------------------------------------#")
-        icmd = input("Chon chuc nang: ")
+        icmd = input("Chon:")
         if icmd == '1':
             ip = input("Nhap hostname: ")
             print(ping(ip))
         elif icmd == '2':
             host = input("Nhap ten host: ")
             print(f"Discove {host}")
-            res = discover(host)
-            if res == 'NOT_FIND_HOSTNAME':
-                print(res)
-            else:
-                for x in res:
-                    print(x)
+            print(discover(host))
         elif icmd == '3':
             hostname = input("Nhap hostname: ")
-            print(remove_host(hostname))
+            check = remove_host(hostname)
+            if check == True:
+                print(f"Remove host: {hostname} completely. Files shared by {hostname} are removed.")
+            else:
+                print("ERROR!")
         elif icmd == '4':
             hostname = input("Nhap hostname: ")
             fname = input("Nhap fname: ")
@@ -581,7 +568,7 @@ def handle_command():
                 print(x)
         elif icmd == '7':
             break
-
+        print("#------------------------------------#")
 #-------------------START SERVER NORMAL TASK HANDLER---------------------------#
 def start_handle_command_process():
     global normal_command_thread

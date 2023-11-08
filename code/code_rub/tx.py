@@ -1,3 +1,12 @@
 import os
-cf_size = os.path.getsize("/Users/buitiendung/Documents/Learn_in_BachKhoa/Năm 3/HK231/Computer networks/team assignment/assignment1/git/Computer-network-assignment/code/version1/code/text.txt")
-print(cf_size)
+
+# Đường dẫn cha
+parent_path = "/home/user/documents"
+
+# Đường dẫn con
+child_path = "/home/usdocuments/prect/files"
+
+# Sử dụng os.path.join() để nối đường dẫn cha và đường dẫn con lại với nhau
+full_path = os.path.relpath(child_path, parent_path)
+
+print("Đường dẫn kết hợp:", full_path)
