@@ -20,9 +20,9 @@ db_lock = threading.Lock()
 
 #-------------------------server listener config--------------------------
 SERVER_IP = 'localhost'
-HOST = 12000
+SERVER_PORT = 12000
 BACKLOG = 5
-serverAddress = (SERVER_IP, HOST)
+serverAddress = (SERVER_IP, SERVER_PORT)
 server = None
 SERVER_RUNNING = None
 connected_clients = []
@@ -34,12 +34,24 @@ DATA_PATH = "my_server_db.db"
 #-------------------------CODE FOR MANY FUNTION-----------------------------------#
 #---------------------------------------------------------------------------------#
 
-#------------------------------get my ip address-----------------------------
-def get_ip_address():
+#------------------------------get and set server address-----------------------------
+def get_self_ip_address():
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
     return ip_address
 
+def get_server_ip_address():
+    global SERVER_IP
+    return SERVER_IP
+
+def get_server_port():
+    global SERVER_PORT
+    return SERVER_PORT
+
+def set_server_port(port = 60000):
+    global SERVER_PORT
+    SERVER_PORT = port
+    
 #-------------kiem tra ftp peer co kha dung----------------
 def check_ftp_peer_status(host_addr, port=21):
     try:
@@ -66,7 +78,8 @@ def get_status_code(response_data):
 #-----------------xu ly ket noi tu client toi---------------
 def handle_client_request(client_socket):
     request_data = client_socket.recv(1024)
-    print(f"Received request: {request_data.decode('utf-8')}")
+    
+    print(f"\nReceived request: {request_data.decode('utf-8')}\n")
     
     request_type = request_data[0:1]
     
@@ -194,7 +207,7 @@ def handle_client_request(client_socket):
         
         status_code = int(200).to_bytes(2, byteorder='big')
         respond_name = "OK"
-        respond_message = status_code + respond_name.encode('ascii', 'strict')
+        respond_message = status_code + respond_name.encode()
         
     #----------------------------Fetch fname-----------------------------------------#
     elif request_type == b'\x04':
@@ -362,43 +375,42 @@ def init_server_listenner(address, backLog = 5):
     
     SERVER_RUNNING = True
     
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # tao socket
-    server.bind(address) # gan IP va Port
-    server.listen(backLog)  # Lắng nghe tối đa 5 kết nối đồng thời
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(address)
+    server.listen(backLog)
 
-    print(f"Server is listening on port: {HOST}")
+    print(f"\nServer is listening on port: {SERVER_PORT}\n")
 
     while SERVER_RUNNING:
         client_socket, addr = server.accept()
         connected_clients.append(client_socket)
-        print(f"Accepted connection from: {addr[0]}:{addr[1]}")
+        print(f"\nAccepted connection from: {addr[0]}:{addr[1]}\n")
         client_handler = threading.Thread(target=handle_client_request, args=(client_socket,))
         client_handler.start()
-    
-    server.close()
     
 #-------------------START SERVER LISTENER---------------------------#
 def start_server_listener():
     global my_server_thread
     my_server_thread = threading.Thread(target=init_server_listenner, args=(serverAddress, BACKLOG))
-    my_server_thread.start()    
+    my_server_thread.setDaemon(True)
+    my_server_thread.start()
 
-# def stop_server():
-#     global SERVER_RUNNING
-#     global connected_clients
-#     if not connected_clients:
-#         SERVER_RUNNING = False
-#         return True
-#     for client in connected_clients :
-#         try:
-#             # Kiểm tra trạng thái của kết nối, ví dụ: gửi một tin nhắn kiểm tra
-#             client.send(b"Are you there?")
-#         except Exception:
-#             # Xử lý nếu kết nối đã đóng hoặc gặp lỗi
-#             print(f"Client {client.getpeername()} disconnected.")
-#             client.close()
-#             connected_clients.remove(client)
-     
+def stop_server():
+    global server
+    global SERVER_RUNNING
+    global connected_clients
+    for client in connected_clients:
+        try:
+            client.send()
+        except Exception:
+            client.close()
+            connected_clients.remove(client)
+    if not connected_clients:
+        server.close()
+        SERVER_RUNNING = False
+        return True
+    else:
+        return False
      
      
 
@@ -446,30 +458,121 @@ def discover(hostname):
     
     return data
 
+#-------------------remove a registered host---------------------------------
+def remove_host(hostname):
+    
+    flag_success = None
+    
+    db_lock.acquire()
+    try:
+        my_db = Database(DATA_PATH)
+        info_data = my_db.get_info_hostname(hostname)
+        if info_data == []:
+            flag_success = 'NOT FIND HOSTNAME'
+        else:
+            host_ip = info_data[0][2]
+            if check_ftp_peer_status(host_ip) == False:
+                my_db.delete_host(hostname)
+                flag_success = 'DELETED HOST'
+            else:
+                flag_success = "HOST IS ONLINE. CAN'T DELETE HOST."
+        my_db.close()
+    finally:
+        db_lock.release()
+        
+    return flag_success
+
+#-------------------remove a file of host---------------------------------
+def remove_file_of_host(hostname, fname):
+    idx = None
+    db_lock.acquire()
+    try:
+        my_db = Database(DATA_PATH)
+        info_data = my_db.get_info_hostname(hostname)
+        if info_data == []:
+            idx = 1 #---khong tim thay host-----------
+        else:
+            file_remove = my_db.check_file_of_host(hostname, fname)
+            if file_remove == []:
+                idx = 2 #-------khong tim thay file---------------
+            else:
+                my_db.delete_file_of_host(fname, hostname)
+                idx = 0 #---------xoa thanh cong------------------------
+        my_db.close()
+    finally:
+        db_lock.release()
+        
+    return idx
+
+#-------------------get all host---------------------------------
+def get_all_host():
+    list_host = None
+    db_lock.acquire()
+    try:
+        my_db = Database(DATA_PATH)
+        list_host = my_db.get_allData_host_table()
+        my_db.close()
+    finally:
+        db_lock.release()
+    return list_host
+
+#-------------------get all file---------------------------------
+def get_all_file():
+    list_file = None
+    db_lock.acquire()
+    try:
+        my_db = Database(DATA_PATH)
+        list_file = my_db.get_allData_file_table()
+        my_db.close()
+    finally:
+        db_lock.release()
+    return list_file
+
 #----------xu ly cac tac vu thong thuong----------------------
 def handle_command():
     while True:
-        print("1. ping to client:")
-        print("2. discover:")
-        print("3. Shutdown:")
-        icmd = input("Chon:")
+        print("#------------------------------------#")
+        print("1. Ping to client:")
+        print("2. Discover:")
+        print("3. Remove a host:")
+        print("4. Remove a file (fname) of a host:")
+        print("5. Get all host:")
+        print("6. Get all file:")
+        print("7. Shutdown:")
+        print("#------------------------------------#")
+        icmd = input("Chon chuc nang: ")
         if icmd == '1':
             ip = input("Nhap hostname: ")
             print(ping(ip))
-            
         elif icmd == '2':
-            host = input("Nhap te host")
+            host = input("Nhap ten host: ")
             print(f"Discove {host}")
             print(discover(host))
-            
         elif icmd == '3':
-            global SERVER_RUNNING
-            global my_server_thread
-            SERVER_RUNNING = False
-            x = my_server_thread.is_alive()
-            y = 0
-            z = 0
+            hostname = input("Nhap hostname: ")
+            print(remove_host(hostname))
+        elif icmd == '4':
+            hostname = input("Nhap hostname: ")
+            fname = input("Nhap fname: ")
+            idx = remove_file_of_host(hostname, fname)
+            if idx == 0:
+                print(f"File {fname} is removed")
+            elif idx == 1:
+                print(f"NOT FIND HOSTNAME!")
+            elif idx == 2:
+                print(f"NOT FIND FNAME")
+                
+        elif icmd == '5':
+            ls = get_all_host()
+            for x in ls:
+                print(x)
+        elif icmd == '6':
+            ls = get_all_file()
+            for x in ls:
+                print(x)
+        elif icmd == '7':
             break
+
 #-------------------START SERVER NORMAL TASK HANDLER---------------------------#
 def start_handle_command_process():
     global normal_command_thread
